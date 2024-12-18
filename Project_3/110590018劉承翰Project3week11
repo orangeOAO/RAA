@@ -1,0 +1,1688 @@
+﻿#pragma once
+//rtde
+#include <ur_rtde/rtde_io_interface.h>
+#include <ur_rtde/rtde_control_interface.h>
+#include <ur_rtde/rtde_receive_interface.h>
+#include <ur_rtde/rtde_export.h>
+#include <chrono>
+#include <iostream>
+#include <thread>
+
+#pragma comment(lib, "libboost_date_time-vc142-mt-gd-x64-1_75.lib")
+#pragma comment(lib, "rtde.lib")
+//opencv
+#ifdef RTDE_CONTROL_INTERFACE_H
+#define RTDE_RECEIVE_INTERFACE_H
+#define _CMATH_
+#define _CRT_SECURE_NO_DEPRECATE
+#define RTDE_EXPORT
+#define NODISCARD
+#include <cstdlib>
+#include <xtr1common>
+#include <yvals.h>
+#include <conio.h>//内含有kbhit()函数 在VC里面有这个头文件
+#include<stdio.h>
+#include<stdlib.h>
+#include<Windows.h>
+
+#include <atomic>
+#include <chrono>
+#include <memory>
+#include <string>
+#include <vector>
+#include <map>
+
+#include <chrono>
+#include <iostream>
+#include <thread>
+#include <fstream>
+#include <opencv2/core.hpp>
+#include <opencv2/videoio.hpp>
+#include <opencv2\opencv.hpp>
+#include <opencv2\highgui\highgui.hpp>
+#include "opencv2\imgproc\imgproc.hpp"
+#include <cstdio>
+#include "opencv/cv.h";
+#include <ctime>
+
+#include <sstream>
+#include <string>
+#include "math.h"
+#include <cmath> 
+#include "myopencv.h" //存放 opencv 程式檔案
+#include "myrtde.h"   //存放 rtde 程式檔案
+#include <windows.h>
+
+//CvCapture* capture;
+//IplImage* frame;
+#endif // DEBUG
+
+#using <system.drawing.dll>
+namespace CppCLRWinformsProjekt
+{
+	//using System::IO;
+	//using System::Reflection;
+	//using System::Resources;
+	using namespace System;
+	using namespace System::ComponentModel;
+	using namespace System::Collections;
+	using namespace System::Windows::Forms;
+	using namespace System::Data;
+	using namespace System::Drawing;
+	using namespace System::Runtime::InteropServices;
+	//
+	using namespace ur_rtde;
+	using namespace std::chrono;
+	using namespace System::Runtime::InteropServices;
+	//opencv
+	using namespace cv;
+	using namespace std;
+	Mat O_t; //全域變數 - 圖像
+	Mat show_image;
+	Mat G_t;
+	Mat T_t;
+	Mat P_t;
+	Mat N_t;
+	Mat frame; //IP Camara
+	int picture_num = 0; //儲存照片次數命名
+	bool flag = true;
+	// DCT
+	int row = 1280; //pixel
+	int col = 960;  //pixel
+	float fcl = 0.009; //focal length 焦距 mm , Gig cam 1:1.4 /9mm
+	float D = 3000;  //假定Z高度 mm
+	int px, py; //影像物件中心點位置 pixel
+	float tx, ty; //物件真實位置(距離)  mm
+	//CGT
+	//rtde 	
+	bool tw_connect = true; //第二次或重新連線使用
+	string ffd = "192.168.61.128";//模擬器IP
+	//string ffd = "192.168.1.100";//手臂IP
+	int arm_chl = 0; //控制手臂移動旋轉
+	int arm_ch2 = 0; //控制手臂移動旋轉
+	RTDEControlInterface rtde_control(ffd); //設置連線IP
+	RTDEReceiveInterface rtde_receive(ffd);
+	RTDEIOInterface rtde_io(ffd); // I/O
+
+	double velocity = 0.2; //速度
+	double acceleration = 0.55; //加速度
+	double dt = 1.0 / 500; // 2ms
+	double lookahead_time = 0.1;
+	double gain = 300;
+	double g1 = 1000.0;
+
+	//origin
+	std::vector<double> joint_q = { 292.55 / g1, -102.7 / g1, 337.3 / g1, 2.225, -2.219, 0.032 }; //第一個參數是姿勢6d向量，後跟速度和加速度 
+	std::vector<double> joint_step = { 292.55 / g1, -102.71 / g1, 337.32 / g1, -2.224, 2.218, -0.032 }; //初始數值   0.01mm/rad 
+	std::vector<double> joint_speed = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+	std::vector<double> feeding_area = { 279.87 / g1, -126.40 / g1, 190 / g1, 2.182, -2.266, 0.020 }; //Photo shooting point
+	Mat bTd = Mat(4, 4, CV_32FC1, Scalar::all(0)); //Camera to Base Anser~~~ **
+	/*
+	* home
+	* It is not recommended to use, move one axis alone, it is easy to encounter singularity   2021-0601
+	*/
+	//std::vector<double> joint_q    = { -0.01 / g1, -194.25 / g1, 694.15 / g1, -0.000, -2.222, 2.222 }; //第一個參數是姿勢6d向量，後跟速度和加速度
+	//std::vector<double> joint_step = { -0.01 / g1, -194.25 / g1, 694.15 / g1, -0.000, -2.222, 2.222 }; //初始數值   0.01mm/rad
+
+	double sd_mv = 0.05; //moveL 速度
+	// Parameters
+	double speed_magnitude = 3.15; //移動步數
+	std::vector<double> speed_vector = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+	double pi = 3.14159265359;
+	//
+	namespace Win32 {
+		[DllImport("kernel32.dll", CallingConvention = CallingConvention::StdCall)]
+		int AllocConsole();
+		[DllImport("kernel32.dll", CallingConvention = CallingConvention::StdCall)]
+		int FreeConsole();
+	}
+	//
+	public ref class Form1 : public System::Windows::Forms::Form
+	{
+	public:
+		Form1(void) //初始化
+		{
+			InitializeComponent();
+			//AllocConsole();
+			int rc = Win32::AllocConsole();
+			//使視窗程式能夠使用與開啟<控制台命令視窗>
+			// Redirect CRT standard input, output and error handles to the console window. 
+			FILE* pNewStdout = nullptr;
+			FILE* pNewStderr = nullptr;
+			FILE* pNewStdin = nullptr;
+			::freopen_s(&pNewStdout, "CONOUT$", "w", stdout);
+			::freopen_s(&pNewStderr, "CONOUT$", "w", stderr);
+			::freopen_s(&pNewStdin, "CONIN$", "r", stdin);
+			std::cout.clear();
+			std::cerr.clear();
+			std::cin.clear();
+			//
+			std::wcout.clear();
+			std::wcerr.clear();
+			std::wcin.clear();
+			// Move to initial joint position with a regular moveJ
+			//rtde
+			rtde_control.moveJ_IK(joint_q, 0.55, 0.2); //機器人回到原點 /速度 /加速度 importent
+		}
+	protected:
+		/// <summary>
+		/// Verwendete Ressourcen bereinigen.
+		/// </summary>
+		~Form1()
+		{
+			if (components)
+			{
+				delete components;
+			}
+		}
+	protected:
+	private: System::Windows::Forms::Timer^ timer1;
+	private: System::Windows::Forms::Timer^ timer2;
+	private: System::Windows::Forms::GroupBox^ groupBox2;
+	private: System::Windows::Forms::Label^ JogRz;
+	private: System::Windows::Forms::Label^ JogRY;
+	private: System::Windows::Forms::Label^ Jog_Z;
+	private: System::Windows::Forms::Label^ JogRX;
+	private: System::Windows::Forms::Label^ Jog_Y;
+	private: System::Windows::Forms::Label^ Jog_X;
+	private: System::Windows::Forms::Button^ JogXdown;
+	private: System::Windows::Forms::Button^ JogXup;
+	private: System::Windows::Forms::Button^ JogRZdown;
+	private: System::Windows::Forms::Button^ JogRYdown;
+	private: System::Windows::Forms::Button^ JogRXdown;
+	private: System::Windows::Forms::Button^ JogZdown;
+	private: System::Windows::Forms::Button^ JogYdown;
+	private: System::Windows::Forms::Button^ JogRYup;
+	private: System::Windows::Forms::Button^ JogRZup;
+	private: System::Windows::Forms::Button^ JogRXup;
+	private: System::Windows::Forms::Button^ JogZup;
+	private: System::Windows::Forms::Button^ JogYup;
+	private: System::Windows::Forms::Button^ disconnect;
+	private: System::Windows::Forms::Button^ connect;
+	private: System::Windows::Forms::TextBox^ ip_txt;
+	private: System::Windows::Forms::Label^ connect_ornot;
+	private: System::Windows::Forms::GroupBox^ groupBox3;
+	private: System::Windows::Forms::Label^ x_data;
+	private: System::Windows::Forms::TextBox^ PosRZ;
+	private: System::Windows::Forms::TextBox^ PosRY;
+	private: System::Windows::Forms::TextBox^ PosRX;
+	private: System::Windows::Forms::TextBox^ PosZ;
+	private: System::Windows::Forms::TextBox^ PosY;
+	private: System::Windows::Forms::TextBox^ PosX;
+	private: System::Windows::Forms::Label^ label5;
+	private: System::Windows::Forms::Label^ label7;
+	private: System::Windows::Forms::Label^ label9;
+	private: System::Windows::Forms::Label^ label6;
+	private: System::Windows::Forms::Button^ get_Position;
+	private: System::Windows::Forms::Button^ Home;
+	private: System::Windows::Forms::Label^ label1;
+	private: System::Windows::Forms::Button^ Camera;
+	private: System::Windows::Forms::Button^ SaveImage;
+	private: System::Windows::Forms::PictureBox^ pictureBox1;
+	private: System::Windows::Forms::ComboBox^ comboBox1;
+
+	private: System::Windows::Forms::CheckBox^ D06;
+	private: System::Windows::Forms::CheckBox^ D04;
+	private: System::Windows::Forms::CheckBox^ D03;
+	private: System::Windows::Forms::CheckBox^ D02;
+	private: System::Windows::Forms::CheckBox^ D00;
+		   //
+	private: System::Windows::Forms::Button^ go_down;
+	private: System::Windows::Forms::Button^ go_up;
+	private: System::Windows::Forms::Button^ WorkingArea;
+	private: System::Windows::Forms::Button^ FeedingArea;
+	private: System::Windows::Forms::Button^ InitialPose;
+	private: System::Windows::Forms::CheckBox^ D07;
+
+
+	private: System::Windows::Forms::Button^ A;
+	private: System::Windows::Forms::Button^ B;
+	private: System::Windows::Forms::Button^ C;
+	private: System::Windows::Forms::Button^ D;
+	private: System::Windows::Forms::Button^ E;
+	private: System::Windows::Forms::Button^ P1;
+	private: System::Windows::Forms::Button^ P2;
+	private: System::Windows::Forms::Button^ P3;
+	private: System::Windows::Forms::Button^ P4;
+	private: System::Windows::Forms::Button^ P5;
+	private: System::Windows::Forms::Button^ P6;
+	private: System::Windows::Forms::Button^ start;
+	private: System::Windows::Forms::Button^ P7;
+	private: System::Windows::Forms::Button^ button1;
+
+		   //Camara 
+	private: System::ComponentModel::IContainer^ components;
+	protected:
+	private:
+		/// <summary>
+		/// Erforderliche Designervariable.
+		/// </summary>
+#pragma region Windows Form Designer generated code 
+/// <summary>
+/// Erforderliche Methode f die Designerunterstzung.
+/// Der Inhalt der Methode darf nicht mit dem Code-Editor ge鄚dert werden.
+/// </summary>
+		void InitializeComponent(void)
+		{
+			this->components = (gcnew System::ComponentModel::Container());
+			this->timer1 = (gcnew System::Windows::Forms::Timer(this->components));
+			this->timer2 = (gcnew System::Windows::Forms::Timer(this->components));
+			this->groupBox2 = (gcnew System::Windows::Forms::GroupBox());
+			this->ip_txt = (gcnew System::Windows::Forms::TextBox());
+			this->disconnect = (gcnew System::Windows::Forms::Button());
+			this->connect = (gcnew System::Windows::Forms::Button());
+			this->JogRZdown = (gcnew System::Windows::Forms::Button());
+			this->JogRYdown = (gcnew System::Windows::Forms::Button());
+			this->JogRXdown = (gcnew System::Windows::Forms::Button());
+			this->JogZdown = (gcnew System::Windows::Forms::Button());
+			this->JogYdown = (gcnew System::Windows::Forms::Button());
+			this->JogRYup = (gcnew System::Windows::Forms::Button());
+			this->JogRZup = (gcnew System::Windows::Forms::Button());
+			this->JogRXup = (gcnew System::Windows::Forms::Button());
+			this->JogZup = (gcnew System::Windows::Forms::Button());
+			this->JogYup = (gcnew System::Windows::Forms::Button());
+			this->JogXdown = (gcnew System::Windows::Forms::Button());
+			this->JogXup = (gcnew System::Windows::Forms::Button());
+			this->JogRz = (gcnew System::Windows::Forms::Label());
+			this->JogRY = (gcnew System::Windows::Forms::Label());
+			this->Jog_Z = (gcnew System::Windows::Forms::Label());
+			this->JogRX = (gcnew System::Windows::Forms::Label());
+			this->Jog_Y = (gcnew System::Windows::Forms::Label());
+			this->Jog_X = (gcnew System::Windows::Forms::Label());
+			this->connect_ornot = (gcnew System::Windows::Forms::Label());
+			this->groupBox3 = (gcnew System::Windows::Forms::GroupBox());
+			this->label1 = (gcnew System::Windows::Forms::Label());
+			this->label7 = (gcnew System::Windows::Forms::Label());
+			this->get_Position = (gcnew System::Windows::Forms::Button());
+			this->label9 = (gcnew System::Windows::Forms::Label());
+			this->label6 = (gcnew System::Windows::Forms::Label());
+			this->label5 = (gcnew System::Windows::Forms::Label());
+			this->x_data = (gcnew System::Windows::Forms::Label());
+			this->PosRZ = (gcnew System::Windows::Forms::TextBox());
+			this->PosRY = (gcnew System::Windows::Forms::TextBox());
+			this->PosRX = (gcnew System::Windows::Forms::TextBox());
+			this->PosZ = (gcnew System::Windows::Forms::TextBox());
+			this->PosY = (gcnew System::Windows::Forms::TextBox());
+			this->PosX = (gcnew System::Windows::Forms::TextBox());
+			this->Home = (gcnew System::Windows::Forms::Button());
+			this->Camera = (gcnew System::Windows::Forms::Button());
+			this->SaveImage = (gcnew System::Windows::Forms::Button());
+			this->pictureBox1 = (gcnew System::Windows::Forms::PictureBox());
+			this->comboBox1 = (gcnew System::Windows::Forms::ComboBox());
+			this->WorkingArea = (gcnew System::Windows::Forms::Button());
+			this->FeedingArea = (gcnew System::Windows::Forms::Button());
+			this->InitialPose = (gcnew System::Windows::Forms::Button());
+			this->D07 = (gcnew System::Windows::Forms::CheckBox());
+			this->D06 = (gcnew System::Windows::Forms::CheckBox());
+			this->D04 = (gcnew System::Windows::Forms::CheckBox());
+			this->D03 = (gcnew System::Windows::Forms::CheckBox());
+			this->D02 = (gcnew System::Windows::Forms::CheckBox());
+			this->D00 = (gcnew System::Windows::Forms::CheckBox());
+			this->A = (gcnew System::Windows::Forms::Button());
+			this->B = (gcnew System::Windows::Forms::Button());
+			this->C = (gcnew System::Windows::Forms::Button());
+			this->D = (gcnew System::Windows::Forms::Button());
+			this->E = (gcnew System::Windows::Forms::Button());
+			this->P1 = (gcnew System::Windows::Forms::Button());
+			this->P2 = (gcnew System::Windows::Forms::Button());
+			this->P3 = (gcnew System::Windows::Forms::Button());
+			this->P4 = (gcnew System::Windows::Forms::Button());
+			this->P5 = (gcnew System::Windows::Forms::Button());
+			this->P6 = (gcnew System::Windows::Forms::Button());
+			this->start = (gcnew System::Windows::Forms::Button());
+			this->P7 = (gcnew System::Windows::Forms::Button());
+			this->button1 = (gcnew System::Windows::Forms::Button());
+			this->groupBox2->SuspendLayout();
+			this->groupBox3->SuspendLayout();
+			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pictureBox1))->BeginInit();
+			this->SuspendLayout();
+			// 
+			// timer1
+			// 
+			this->timer1->Tick += gcnew System::EventHandler(this, &Form1::timer1_Tick);
+			// 
+			// timer2
+			// 
+			this->timer2->Tick += gcnew System::EventHandler(this, &Form1::timer2_Tick);
+			// 
+			// groupBox2
+			// 
+			this->groupBox2->Controls->Add(this->ip_txt);
+			this->groupBox2->Controls->Add(this->disconnect);
+			this->groupBox2->Controls->Add(this->connect);
+			this->groupBox2->Controls->Add(this->JogRZdown);
+			this->groupBox2->Controls->Add(this->JogRYdown);
+			this->groupBox2->Controls->Add(this->JogRXdown);
+			this->groupBox2->Controls->Add(this->JogZdown);
+			this->groupBox2->Controls->Add(this->JogYdown);
+			this->groupBox2->Controls->Add(this->JogRYup);
+			this->groupBox2->Controls->Add(this->JogRZup);
+			this->groupBox2->Controls->Add(this->JogRXup);
+			this->groupBox2->Controls->Add(this->JogZup);
+			this->groupBox2->Controls->Add(this->JogYup);
+			this->groupBox2->Controls->Add(this->JogXdown);
+			this->groupBox2->Controls->Add(this->JogXup);
+			this->groupBox2->Controls->Add(this->JogRz);
+			this->groupBox2->Controls->Add(this->JogRY);
+			this->groupBox2->Controls->Add(this->Jog_Z);
+			this->groupBox2->Controls->Add(this->JogRX);
+			this->groupBox2->Controls->Add(this->Jog_Y);
+			this->groupBox2->Controls->Add(this->Jog_X);
+			this->groupBox2->Font = (gcnew System::Drawing::Font(L"標楷體", 9, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->groupBox2->Location = System::Drawing::Point(9, 35);
+			this->groupBox2->Margin = System::Windows::Forms::Padding(2);
+			this->groupBox2->Name = L"groupBox2";
+			this->groupBox2->Padding = System::Windows::Forms::Padding(2);
+			this->groupBox2->Size = System::Drawing::Size(319, 191);
+			this->groupBox2->TabIndex = 18;
+			this->groupBox2->TabStop = false;
+			this->groupBox2->Text = L"RTDE 功能表";
+			// 
+			// ip_txt
+			// 
+			this->ip_txt->Font = (gcnew System::Drawing::Font(L"標楷體", 9, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->ip_txt->Location = System::Drawing::Point(10, 19);
+			this->ip_txt->Margin = System::Windows::Forms::Padding(2);
+			this->ip_txt->Name = L"ip_txt";
+			this->ip_txt->Size = System::Drawing::Size(127, 22);
+			this->ip_txt->TabIndex = 23;
+			this->ip_txt->Text = L"192.168.1.100";
+			this->ip_txt->TextChanged += gcnew System::EventHandler(this, &Form1::ip_txt_TextChanged);
+			// 
+			// disconnect
+			// 
+			this->disconnect->Location = System::Drawing::Point(218, 20);
+			this->disconnect->Margin = System::Windows::Forms::Padding(2);
+			this->disconnect->Name = L"disconnect";
+			this->disconnect->Size = System::Drawing::Size(88, 21);
+			this->disconnect->TabIndex = 24;
+			this->disconnect->Text = L"斷線";
+			this->disconnect->UseVisualStyleBackColor = true;
+			this->disconnect->Click += gcnew System::EventHandler(this, &Form1::disconnect_Click);
+			// 
+			// connect
+			// 
+			this->connect->Font = (gcnew System::Drawing::Font(L"標楷體", 9, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->connect->ImageAlign = System::Drawing::ContentAlignment::TopCenter;
+			this->connect->Location = System::Drawing::Point(140, 19);
+			this->connect->Margin = System::Windows::Forms::Padding(2);
+			this->connect->Name = L"connect";
+			this->connect->Size = System::Drawing::Size(73, 22);
+			this->connect->TabIndex = 23;
+			this->connect->Text = L"連線";
+			this->connect->UseVisualStyleBackColor = true;
+			this->connect->Click += gcnew System::EventHandler(this, &Form1::connect_Click);
+			// 
+			// JogRZdown
+			// 
+			this->JogRZdown->Font = (gcnew System::Drawing::Font(L"新細明體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->JogRZdown->Location = System::Drawing::Point(254, 144);
+			this->JogRZdown->Margin = System::Windows::Forms::Padding(2);
+			this->JogRZdown->Name = L"JogRZdown";
+			this->JogRZdown->Size = System::Drawing::Size(32, 33);
+			this->JogRZdown->TabIndex = 17;
+			this->JogRZdown->Text = L"-";
+			this->JogRZdown->UseVisualStyleBackColor = true;
+			this->JogRZdown->MouseDown += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::JogRZdown_MouseDown);
+			this->JogRZdown->MouseUp += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::Jog_up);
+			// 
+			// JogRYdown
+			// 
+			this->JogRYdown->Font = (gcnew System::Drawing::Font(L"新細明體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->JogRYdown->Location = System::Drawing::Point(158, 144);
+			this->JogRYdown->Margin = System::Windows::Forms::Padding(2);
+			this->JogRYdown->Name = L"JogRYdown";
+			this->JogRYdown->Size = System::Drawing::Size(32, 33);
+			this->JogRYdown->TabIndex = 16;
+			this->JogRYdown->Text = L"-";
+			this->JogRYdown->UseVisualStyleBackColor = true;
+			this->JogRYdown->MouseDown += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::JogRYdown_MouseDown);
+			this->JogRYdown->MouseUp += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::Jog_up);
+			// 
+			// JogRXdown
+			// 
+			this->JogRXdown->Font = (gcnew System::Drawing::Font(L"新細明體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->JogRXdown->Location = System::Drawing::Point(45, 144);
+			this->JogRXdown->Margin = System::Windows::Forms::Padding(2);
+			this->JogRXdown->Name = L"JogRXdown";
+			this->JogRXdown->Size = System::Drawing::Size(34, 31);
+			this->JogRXdown->TabIndex = 15;
+			this->JogRXdown->Text = L"-";
+			this->JogRXdown->UseVisualStyleBackColor = true;
+			this->JogRXdown->MouseDown += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::JogRXdown_MouseDown);
+			this->JogRXdown->MouseUp += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::Jog_up);
+			// 
+			// JogZdown
+			// 
+			this->JogZdown->Font = (gcnew System::Drawing::Font(L"新細明體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->JogZdown->Location = System::Drawing::Point(254, 81);
+			this->JogZdown->Margin = System::Windows::Forms::Padding(2);
+			this->JogZdown->Name = L"JogZdown";
+			this->JogZdown->Size = System::Drawing::Size(32, 33);
+			this->JogZdown->TabIndex = 14;
+			this->JogZdown->Text = L"-";
+			this->JogZdown->UseVisualStyleBackColor = true;
+			this->JogZdown->MouseDown += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::JogZdown_MouseDown);
+			this->JogZdown->MouseUp += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::Jog_up);
+			// 
+			// JogYdown
+			// 
+			this->JogYdown->Font = (gcnew System::Drawing::Font(L"新細明體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->JogYdown->Location = System::Drawing::Point(158, 79);
+			this->JogYdown->Margin = System::Windows::Forms::Padding(2);
+			this->JogYdown->Name = L"JogYdown";
+			this->JogYdown->Size = System::Drawing::Size(32, 34);
+			this->JogYdown->TabIndex = 13;
+			this->JogYdown->Text = L"-";
+			this->JogYdown->UseVisualStyleBackColor = true;
+			this->JogYdown->MouseDown += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::JogYdown_MouseDown);
+			this->JogYdown->MouseUp += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::Jog_up);
+			// 
+			// JogRYup
+			// 
+			this->JogRYup->Location = System::Drawing::Point(118, 144);
+			this->JogRYup->Margin = System::Windows::Forms::Padding(2);
+			this->JogRYup->Name = L"JogRYup";
+			this->JogRYup->Size = System::Drawing::Size(35, 33);
+			this->JogRYup->TabIndex = 12;
+			this->JogRYup->Text = L"+";
+			this->JogRYup->UseVisualStyleBackColor = true;
+			this->JogRYup->MouseDown += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::JogRYup_MouseDown);
+			this->JogRYup->MouseUp += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::Jog_up);
+			// 
+			// JogRZup
+			// 
+			this->JogRZup->Location = System::Drawing::Point(214, 144);
+			this->JogRZup->Margin = System::Windows::Forms::Padding(2);
+			this->JogRZup->Name = L"JogRZup";
+			this->JogRZup->Size = System::Drawing::Size(34, 33);
+			this->JogRZup->TabIndex = 11;
+			this->JogRZup->Text = L"+";
+			this->JogRZup->UseVisualStyleBackColor = true;
+			this->JogRZup->MouseDown += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::JogRZup_MouseDown);
+			this->JogRZup->MouseUp += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::Jog_up);
+			// 
+			// JogRXup
+			// 
+			this->JogRXup->Location = System::Drawing::Point(8, 146);
+			this->JogRXup->Margin = System::Windows::Forms::Padding(2);
+			this->JogRXup->Name = L"JogRXup";
+			this->JogRXup->Size = System::Drawing::Size(33, 31);
+			this->JogRXup->TabIndex = 10;
+			this->JogRXup->Text = L"+";
+			this->JogRXup->UseVisualStyleBackColor = true;
+			this->JogRXup->MouseDown += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::JogRXup_MouseDown);
+			this->JogRXup->MouseUp += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::Jog_up);
+			// 
+			// JogZup
+			// 
+			this->JogZup->Location = System::Drawing::Point(214, 81);
+			this->JogZup->Margin = System::Windows::Forms::Padding(2);
+			this->JogZup->Name = L"JogZup";
+			this->JogZup->Size = System::Drawing::Size(34, 33);
+			this->JogZup->TabIndex = 9;
+			this->JogZup->Text = L"+";
+			this->JogZup->UseVisualStyleBackColor = true;
+			this->JogZup->MouseDown += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::JogZup_MouseDown);
+			this->JogZup->MouseUp += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::Jog_up);
+			// 
+			// JogYup
+			// 
+			this->JogYup->Location = System::Drawing::Point(118, 80);
+			this->JogYup->Margin = System::Windows::Forms::Padding(2);
+			this->JogYup->Name = L"JogYup";
+			this->JogYup->Size = System::Drawing::Size(35, 34);
+			this->JogYup->TabIndex = 8;
+			this->JogYup->Text = L"+";
+			this->JogYup->UseVisualStyleBackColor = true;
+			this->JogYup->MouseDown += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::JogYup_MouseDown);
+			this->JogYup->MouseUp += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::Jog_up);
+			// 
+			// JogXdown
+			// 
+			this->JogXdown->Font = (gcnew System::Drawing::Font(L"新細明體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->JogXdown->Location = System::Drawing::Point(45, 79);
+			this->JogXdown->Margin = System::Windows::Forms::Padding(2);
+			this->JogXdown->Name = L"JogXdown";
+			this->JogXdown->Size = System::Drawing::Size(34, 33);
+			this->JogXdown->TabIndex = 7;
+			this->JogXdown->Text = L"-";
+			this->JogXdown->UseVisualStyleBackColor = true;
+			this->JogXdown->MouseDown += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::JogXdown_MouseDown);
+			this->JogXdown->MouseUp += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::Jog_up);
+			// 
+			// JogXup
+			// 
+			this->JogXup->Location = System::Drawing::Point(6, 79);
+			this->JogXup->Margin = System::Windows::Forms::Padding(2);
+			this->JogXup->Name = L"JogXup";
+			this->JogXup->Size = System::Drawing::Size(35, 33);
+			this->JogXup->TabIndex = 6;
+			this->JogXup->Text = L"+";
+			this->JogXup->UseVisualStyleBackColor = true;
+			this->JogXup->MouseDown += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::JogXup_MouseDown);
+			this->JogXup->MouseUp += gcnew System::Windows::Forms::MouseEventHandler(this, &Form1::Jog_up);
+			// 
+			// JogRz
+			// 
+			this->JogRz->AutoSize = true;
+			this->JogRz->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 13.8F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->JogRz->Location = System::Drawing::Point(220, 114);
+			this->JogRz->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
+			this->JogRz->Name = L"JogRz";
+			this->JogRz->Size = System::Drawing::Size(68, 24);
+			this->JogRz->TabIndex = 5;
+			this->JogRz->Text = L"JogRz";
+			// 
+			// JogRY
+			// 
+			this->JogRY->AutoSize = true;
+			this->JogRY->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 13.8F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->JogRY->Location = System::Drawing::Point(122, 114);
+			this->JogRY->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
+			this->JogRY->Name = L"JogRY";
+			this->JogRY->Size = System::Drawing::Size(71, 24);
+			this->JogRY->TabIndex = 4;
+			this->JogRY->Text = L"JogRY";
+			// 
+			// Jog_Z
+			// 
+			this->Jog_Z->AutoSize = true;
+			this->Jog_Z->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 13.8F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->Jog_Z->Location = System::Drawing::Point(224, 55);
+			this->Jog_Z->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
+			this->Jog_Z->Name = L"Jog_Z";
+			this->Jog_Z->Size = System::Drawing::Size(68, 24);
+			this->Jog_Z->TabIndex = 3;
+			this->Jog_Z->Text = L"Jog_Z";
+			// 
+			// JogRX
+			// 
+			this->JogRX->AutoSize = true;
+			this->JogRX->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 13.8F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->JogRX->Location = System::Drawing::Point(6, 114);
+			this->JogRX->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
+			this->JogRX->Name = L"JogRX";
+			this->JogRX->Size = System::Drawing::Size(73, 24);
+			this->JogRX->TabIndex = 2;
+			this->JogRX->Text = L"JogRX";
+			// 
+			// Jog_Y
+			// 
+			this->Jog_Y->AutoSize = true;
+			this->Jog_Y->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 13.8F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->Jog_Y->Location = System::Drawing::Point(114, 55);
+			this->Jog_Y->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
+			this->Jog_Y->Name = L"Jog_Y";
+			this->Jog_Y->Size = System::Drawing::Size(68, 24);
+			this->Jog_Y->TabIndex = 1;
+			this->Jog_Y->Text = L"Jog_Y";
+			// 
+			// Jog_X
+			// 
+			this->Jog_X->AutoSize = true;
+			this->Jog_X->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 13.8F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->Jog_X->Location = System::Drawing::Point(9, 55);
+			this->Jog_X->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
+			this->Jog_X->Name = L"Jog_X";
+			this->Jog_X->Size = System::Drawing::Size(70, 24);
+			this->Jog_X->TabIndex = 0;
+			this->Jog_X->Text = L"Jog_X";
+			// 
+			// connect_ornot
+			// 
+			this->connect_ornot->AutoSize = true;
+			this->connect_ornot->BackColor = System::Drawing::Color::Red;
+			this->connect_ornot->Font = (gcnew System::Drawing::Font(L"標楷體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->connect_ornot->Location = System::Drawing::Point(14, 9);
+			this->connect_ornot->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
+			this->connect_ornot->Name = L"connect_ornot";
+			this->connect_ornot->Size = System::Drawing::Size(76, 16);
+			this->connect_ornot->TabIndex = 23;
+			this->connect_ornot->Text = L"等待指令";
+			// 
+			// groupBox3
+			// 
+			this->groupBox3->Controls->Add(this->label1);
+			this->groupBox3->Controls->Add(this->label7);
+			this->groupBox3->Controls->Add(this->get_Position);
+			this->groupBox3->Controls->Add(this->label9);
+			this->groupBox3->Controls->Add(this->label6);
+			this->groupBox3->Controls->Add(this->label5);
+			this->groupBox3->Controls->Add(this->x_data);
+			this->groupBox3->Controls->Add(this->PosRZ);
+			this->groupBox3->Controls->Add(this->PosRY);
+			this->groupBox3->Controls->Add(this->PosRX);
+			this->groupBox3->Controls->Add(this->PosZ);
+			this->groupBox3->Controls->Add(this->PosY);
+			this->groupBox3->Controls->Add(this->PosX);
+			this->groupBox3->Font = (gcnew System::Drawing::Font(L"標楷體", 9, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->groupBox3->Location = System::Drawing::Point(340, 76);
+			this->groupBox3->Margin = System::Windows::Forms::Padding(2);
+			this->groupBox3->Name = L"groupBox3";
+			this->groupBox3->Padding = System::Windows::Forms::Padding(2);
+			this->groupBox3->Size = System::Drawing::Size(220, 150);
+			this->groupBox3->TabIndex = 24;
+			this->groupBox3->TabStop = false;
+			this->groupBox3->Text = L"Robot 資料";
+			// 
+			// label1
+			// 
+			this->label1->AutoSize = true;
+			this->label1->Location = System::Drawing::Point(110, 94);
+			this->label1->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
+			this->label1->Name = L"label1";
+			this->label1->Size = System::Drawing::Size(26, 12);
+			this->label1->TabIndex = 35;
+			this->label1->Text = L"RY:";
+			// 
+			// label7
+			// 
+			this->label7->AutoSize = true;
+			this->label7->Location = System::Drawing::Point(110, 118);
+			this->label7->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
+			this->label7->Name = L"label7";
+			this->label7->Size = System::Drawing::Size(26, 12);
+			this->label7->TabIndex = 11;
+			this->label7->Text = L"RZ:";
+			// 
+			// get_Position
+			// 
+			this->get_Position->Font = (gcnew System::Drawing::Font(L"標楷體", 14.25F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->get_Position->Location = System::Drawing::Point(4, 19);
+			this->get_Position->Margin = System::Windows::Forms::Padding(2);
+			this->get_Position->Name = L"get_Position";
+			this->get_Position->Size = System::Drawing::Size(210, 28);
+			this->get_Position->TabIndex = 25;
+			this->get_Position->Text = L"現在位置";
+			this->get_Position->UseVisualStyleBackColor = true;
+			this->get_Position->Click += gcnew System::EventHandler(this, &Form1::get_Position_Click);
+			// 
+			// label9
+			// 
+			this->label9->AutoSize = true;
+			this->label9->Location = System::Drawing::Point(110, 64);
+			this->label9->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
+			this->label9->Name = L"label9";
+			this->label9->Size = System::Drawing::Size(26, 12);
+			this->label9->TabIndex = 9;
+			this->label9->Text = L"RX:";
+			// 
+			// label6
+			// 
+			this->label6->AutoSize = true;
+			this->label6->Location = System::Drawing::Point(5, 118);
+			this->label6->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
+			this->label6->Name = L"label6";
+			this->label6->Size = System::Drawing::Size(19, 12);
+			this->label6->TabIndex = 8;
+			this->label6->Text = L"Z:";
+			// 
+			// label5
+			// 
+			this->label5->AutoSize = true;
+			this->label5->Location = System::Drawing::Point(4, 91);
+			this->label5->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
+			this->label5->Name = L"label5";
+			this->label5->Size = System::Drawing::Size(19, 12);
+			this->label5->TabIndex = 7;
+			this->label5->Text = L"Y:";
+			// 
+			// x_data
+			// 
+			this->x_data->AutoSize = true;
+			this->x_data->Location = System::Drawing::Point(4, 64);
+			this->x_data->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
+			this->x_data->Name = L"x_data";
+			this->x_data->Size = System::Drawing::Size(19, 12);
+			this->x_data->TabIndex = 6;
+			this->x_data->Text = L"X:";
+			// 
+			// PosRZ
+			// 
+			this->PosRZ->Location = System::Drawing::Point(141, 114);
+			this->PosRZ->Margin = System::Windows::Forms::Padding(2);
+			this->PosRZ->Name = L"PosRZ";
+			this->PosRZ->Size = System::Drawing::Size(76, 22);
+			this->PosRZ->TabIndex = 5;
+			// 
+			// PosRY
+			// 
+			this->PosRY->Location = System::Drawing::Point(141, 89);
+			this->PosRY->Margin = System::Windows::Forms::Padding(2);
+			this->PosRY->Name = L"PosRY";
+			this->PosRY->Size = System::Drawing::Size(76, 22);
+			this->PosRY->TabIndex = 4;
+			// 
+			// PosRX
+			// 
+			this->PosRX->Location = System::Drawing::Point(141, 62);
+			this->PosRX->Margin = System::Windows::Forms::Padding(2);
+			this->PosRX->Name = L"PosRX";
+			this->PosRX->Size = System::Drawing::Size(76, 22);
+			this->PosRX->TabIndex = 3;
+			// 
+			// PosZ
+			// 
+			this->PosZ->Location = System::Drawing::Point(31, 115);
+			this->PosZ->Margin = System::Windows::Forms::Padding(2);
+			this->PosZ->Name = L"PosZ";
+			this->PosZ->Size = System::Drawing::Size(76, 22);
+			this->PosZ->TabIndex = 26;
+			// 
+			// PosY
+			// 
+			this->PosY->Location = System::Drawing::Point(31, 87);
+			this->PosY->Margin = System::Windows::Forms::Padding(2);
+			this->PosY->Name = L"PosY";
+			this->PosY->Size = System::Drawing::Size(76, 22);
+			this->PosY->TabIndex = 1;
+			// 
+			// PosX
+			// 
+			this->PosX->Location = System::Drawing::Point(31, 62);
+			this->PosX->Margin = System::Windows::Forms::Padding(2);
+			this->PosX->Name = L"PosX";
+			this->PosX->Size = System::Drawing::Size(76, 22);
+			this->PosX->TabIndex = 0;
+			this->PosX->TabStop = false;
+			// 
+			// Home
+			// 
+			this->Home->Font = (gcnew System::Drawing::Font(L"標楷體", 14.25F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->Home->Location = System::Drawing::Point(340, 35);
+			this->Home->Margin = System::Windows::Forms::Padding(2);
+			this->Home->Name = L"Home";
+			this->Home->Size = System::Drawing::Size(136, 41);
+			this->Home->TabIndex = 26;
+			this->Home->Text = L"Home";
+			this->Home->UseVisualStyleBackColor = true;
+			this->Home->Click += gcnew System::EventHandler(this, &Form1::home_Click);
+			// 
+			// Camera
+			// 
+			this->Camera->Location = System::Drawing::Point(0, 0);
+			this->Camera->Name = L"Camera";
+			this->Camera->Size = System::Drawing::Size(75, 23);
+			this->Camera->TabIndex = 0;
+			// 
+			// SaveImage
+			// 
+			this->SaveImage->Location = System::Drawing::Point(0, 0);
+			this->SaveImage->Name = L"SaveImage";
+			this->SaveImage->Size = System::Drawing::Size(75, 23);
+			this->SaveImage->TabIndex = 0;
+			// 
+			// pictureBox1
+			// 
+			this->pictureBox1->Location = System::Drawing::Point(0, 0);
+			this->pictureBox1->Name = L"pictureBox1";
+			this->pictureBox1->Size = System::Drawing::Size(100, 50);
+			this->pictureBox1->TabIndex = 0;
+			this->pictureBox1->TabStop = false;
+			// 
+			// comboBox1
+			// 
+			this->comboBox1->Location = System::Drawing::Point(0, 0);
+			this->comboBox1->Name = L"comboBox1";
+			this->comboBox1->Size = System::Drawing::Size(121, 20);
+			this->comboBox1->TabIndex = 0;
+			// 
+			// WorkingArea
+			// 
+			this->WorkingArea->Location = System::Drawing::Point(0, 0);
+			this->WorkingArea->Name = L"WorkingArea";
+			this->WorkingArea->Size = System::Drawing::Size(75, 23);
+			this->WorkingArea->TabIndex = 0;
+			// 
+			// FeedingArea
+			// 
+			this->FeedingArea->Location = System::Drawing::Point(0, 0);
+			this->FeedingArea->Name = L"FeedingArea";
+			this->FeedingArea->Size = System::Drawing::Size(75, 23);
+			this->FeedingArea->TabIndex = 0;
+			// 
+			// InitialPose
+			// 
+			this->InitialPose->Location = System::Drawing::Point(0, 0);
+			this->InitialPose->Name = L"InitialPose";
+			this->InitialPose->Size = System::Drawing::Size(75, 23);
+			this->InitialPose->TabIndex = 0;
+			// 
+			// D07
+			// 
+			this->D07->AutoSize = true;
+			this->D07->Font = (gcnew System::Drawing::Font(L"標楷體", 15.75F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->D07->Location = System::Drawing::Point(452, 247);
+			this->D07->Name = L"D07";
+			this->D07->Size = System::Drawing::Size(75, 25);
+			this->D07->TabIndex = 34;
+			this->D07->Text = L"開關";
+			this->D07->UseVisualStyleBackColor = true;
+			this->D07->CheckedChanged += gcnew System::EventHandler(this, &Form1::D07_CheckedChanged);
+			// 
+			// D06
+			// 
+			this->D06->Location = System::Drawing::Point(0, 0);
+			this->D06->Name = L"D06";
+			this->D06->Size = System::Drawing::Size(104, 24);
+			this->D06->TabIndex = 0;
+			// 
+			// D04
+			// 
+			this->D04->Location = System::Drawing::Point(0, 0);
+			this->D04->Name = L"D04";
+			this->D04->Size = System::Drawing::Size(104, 24);
+			this->D04->TabIndex = 0;
+			// 
+			// D03
+			// 
+			this->D03->Location = System::Drawing::Point(0, 0);
+			this->D03->Name = L"D03";
+			this->D03->Size = System::Drawing::Size(104, 24);
+			this->D03->TabIndex = 0;
+			// 
+			// D02
+			// 
+			this->D02->Location = System::Drawing::Point(0, 0);
+			this->D02->Name = L"D02";
+			this->D02->Size = System::Drawing::Size(104, 24);
+			this->D02->TabIndex = 0;
+			// 
+			// D00
+			// 
+			this->D00->Location = System::Drawing::Point(0, 0);
+			this->D00->Name = L"D00";
+			this->D00->Size = System::Drawing::Size(104, 24);
+			this->D00->TabIndex = 0;
+			// 
+			// A
+			// 
+			this->A->Font = (gcnew System::Drawing::Font(L"標楷體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->A->ForeColor = System::Drawing::Color::Black;
+			this->A->Location = System::Drawing::Point(95, 237);
+			this->A->Margin = System::Windows::Forms::Padding(2);
+			this->A->Name = L"A";
+			this->A->Size = System::Drawing::Size(84, 40);
+			this->A->TabIndex = 35;
+			this->A->Text = L"P2";
+			this->A->UseVisualStyleBackColor = true;
+			this->A->Click += gcnew System::EventHandler(this, &Form1::A_Click);
+			// 
+			// B
+			// 
+			this->B->Font = (gcnew System::Drawing::Font(L"標楷體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->B->Location = System::Drawing::Point(7, 237);
+			this->B->Margin = System::Windows::Forms::Padding(2);
+			this->B->Name = L"B";
+			this->B->Size = System::Drawing::Size(84, 40);
+			this->B->TabIndex = 36;
+			this->B->Text = L"P1\r\n";
+			this->B->UseVisualStyleBackColor = true;
+			this->B->Click += gcnew System::EventHandler(this, &Form1::B_Click);
+			// 
+			// C
+			// 
+			this->C->Font = (gcnew System::Drawing::Font(L"標楷體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->C->Location = System::Drawing::Point(183, 237);
+			this->C->Margin = System::Windows::Forms::Padding(2);
+			this->C->Name = L"C";
+			this->C->Size = System::Drawing::Size(84, 40);
+			this->C->TabIndex = 37;
+			this->C->Text = L"起始點";
+			this->C->UseVisualStyleBackColor = true;
+			this->C->Click += gcnew System::EventHandler(this, &Form1::C_Click);
+			// 
+			// D
+			// 
+			this->D->Font = (gcnew System::Drawing::Font(L"標楷體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->D->Location = System::Drawing::Point(359, 237);
+			this->D->Margin = System::Windows::Forms::Padding(2);
+			this->D->Name = L"D";
+			this->D->Size = System::Drawing::Size(84, 40);
+			this->D->TabIndex = 40;
+			this->D->Text = L"P4\r\n";
+			this->D->UseVisualStyleBackColor = true;
+			this->D->Click += gcnew System::EventHandler(this, &Form1::D_Click);
+			// 
+			// E
+			// 
+			this->E->Font = (gcnew System::Drawing::Font(L"標楷體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->E->Location = System::Drawing::Point(271, 237);
+			this->E->Margin = System::Windows::Forms::Padding(2);
+			this->E->Name = L"E";
+			this->E->Size = System::Drawing::Size(84, 40);
+			this->E->TabIndex = 41;
+			this->E->Text = L"P3\r\n";
+			this->E->UseVisualStyleBackColor = true;
+			this->E->Click += gcnew System::EventHandler(this, &Form1::E_Click);
+			// 
+			// P1
+			// 
+			this->P1->Font = (gcnew System::Drawing::Font(L"Century", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->P1->ForeColor = System::Drawing::Color::Teal;
+			this->P1->Location = System::Drawing::Point(4, 294);
+			this->P1->Name = L"P1";
+			this->P1->Size = System::Drawing::Size(60, 35);
+			this->P1->TabIndex = 42;
+			this->P1->Text = L"P1";
+			this->P1->UseVisualStyleBackColor = true;
+			this->P1->Click += gcnew System::EventHandler(this, &Form1::P1_Click);
+			// 
+			// P2
+			// 
+			this->P2->Font = (gcnew System::Drawing::Font(L"Century", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->P2->ForeColor = System::Drawing::Color::Teal;
+			this->P2->Location = System::Drawing::Point(70, 294);
+			this->P2->Name = L"P2";
+			this->P2->Size = System::Drawing::Size(60, 35);
+			this->P2->TabIndex = 43;
+			this->P2->Text = L"P2";
+			this->P2->UseVisualStyleBackColor = true;
+			this->P2->Click += gcnew System::EventHandler(this, &Form1::P2_Click);
+			// 
+			// P3
+			// 
+			this->P3->Font = (gcnew System::Drawing::Font(L"Century", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->P3->ForeColor = System::Drawing::Color::Teal;
+			this->P3->Location = System::Drawing::Point(136, 294);
+			this->P3->Name = L"P3";
+			this->P3->Size = System::Drawing::Size(60, 35);
+			this->P3->TabIndex = 44;
+			this->P3->Text = L"P3";
+			this->P3->UseVisualStyleBackColor = true;
+			this->P3->Click += gcnew System::EventHandler(this, &Form1::P3_Click);
+			// 
+			// P4
+			// 
+			this->P4->Font = (gcnew System::Drawing::Font(L"Century", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->P4->ForeColor = System::Drawing::Color::Teal;
+			this->P4->Location = System::Drawing::Point(202, 294);
+			this->P4->Name = L"P4";
+			this->P4->Size = System::Drawing::Size(65, 35);
+			this->P4->TabIndex = 45;
+			this->P4->Text = L"P4";
+			this->P4->UseVisualStyleBackColor = true;
+			this->P4->Click += gcnew System::EventHandler(this, &Form1::P4_Click);
+			// 
+			// P5
+			// 
+			this->P5->Location = System::Drawing::Point(0, 0);
+			this->P5->Name = L"P5";
+			this->P5->Size = System::Drawing::Size(75, 21);
+			this->P5->TabIndex = 52;
+			// 
+			// P6
+			// 
+			this->P6->Location = System::Drawing::Point(0, 0);
+			this->P6->Name = L"P6";
+			this->P6->Size = System::Drawing::Size(75, 21);
+			this->P6->TabIndex = 51;
+			// 
+			// start
+			// 
+			this->start->Font = (gcnew System::Drawing::Font(L"標楷體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(0)));
+			this->start->Location = System::Drawing::Point(481, 36);
+			this->start->Margin = System::Windows::Forms::Padding(2);
+			this->start->Name = L"start";
+			this->start->Size = System::Drawing::Size(84, 40);
+			this->start->TabIndex = 48;
+			this->start->Text = L"起始點";
+			this->start->UseVisualStyleBackColor = true;
+			this->start->Click += gcnew System::EventHandler(this, &Form1::start_Click);
+			// 
+			// P7
+			// 
+			this->P7->Font = (gcnew System::Drawing::Font(L"標楷體", 14.25F, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->P7->ForeColor = System::Drawing::Color::Navy;
+			this->P7->Location = System::Drawing::Point(565, 247);
+			this->P7->Name = L"P7";
+			this->P7->Size = System::Drawing::Size(104, 35);
+			this->P7->TabIndex = 49;
+			this->P7->Text = L"連續動作";
+			this->P7->UseVisualStyleBackColor = true;
+			this->P7->Click += gcnew System::EventHandler(this, &Form1::P7_Click);
+			// 
+			// button1
+			// 
+			this->button1->Font = (gcnew System::Drawing::Font(L"標楷體", 12, System::Drawing::FontStyle::Bold, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(136)));
+			this->button1->ForeColor = System::Drawing::Color::Maroon;
+			this->button1->Location = System::Drawing::Point(574, 208);
+			this->button1->Name = L"button1";
+			this->button1->Size = System::Drawing::Size(75, 33);
+			this->button1->TabIndex = 50;
+			this->button1->Text = L"加分題";
+			this->button1->UseVisualStyleBackColor = true;
+			this->button1->Click += gcnew System::EventHandler(this, &Form1::button1_Click);
+			// 
+			// Form1
+			// 
+			this->AutoScaleDimensions = System::Drawing::SizeF(6, 12);
+			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
+			this->BackColor = System::Drawing::SystemColors::ScrollBar;
+			this->ClientSize = System::Drawing::Size(673, 284);
+			this->Controls->Add(this->button1);
+			this->Controls->Add(this->P7);
+			this->Controls->Add(this->start);
+			this->Controls->Add(this->P6);
+			this->Controls->Add(this->P5);
+			this->Controls->Add(this->P4);
+			this->Controls->Add(this->P3);
+			this->Controls->Add(this->P2);
+			this->Controls->Add(this->P1);
+			this->Controls->Add(this->E);
+			this->Controls->Add(this->D);
+			this->Controls->Add(this->C);
+			this->Controls->Add(this->B);
+			this->Controls->Add(this->A);
+			this->Controls->Add(this->D07);
+			this->Controls->Add(this->Home);
+			this->Controls->Add(this->groupBox3);
+			this->Controls->Add(this->connect_ornot);
+			this->Controls->Add(this->groupBox2);
+			this->Margin = System::Windows::Forms::Padding(2);
+			this->Name = L"Form1";
+			this->Load += gcnew System::EventHandler(this, &Form1::Form1_Load);
+			this->groupBox2->ResumeLayout(false);
+			this->groupBox2->PerformLayout();
+			this->groupBox3->ResumeLayout(false);
+			this->groupBox3->PerformLayout();
+			(cli::safe_cast<System::ComponentModel::ISupportInitialize^>(this->pictureBox1))->EndInit();
+			this->ResumeLayout(false);
+			this->PerformLayout();
+
+		}
+		//Rtde ============================================================================================
+		/*
+		以下語法遵循 rtde 1.4.1版本， 官網: https://sdurobotics.gitlab.io/ur_rtde/api/api.html#rtde-control-interface-api
+		*/
+	private: System::Void home_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		rtde_control.moveJ_IK(joint_q, 0.55, 0.2); //機器人回到原點 /速度 /加速度 importents 
+		joint_step = joint_q; //回原點
+	}
+		   //Connect 連接UR3
+	private: System::Void connect_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		try
+		{
+			if (tw_connect)
+			{
+				//rtde_control.jogStart(speed_vector, RTDEControlInterface::FEATURE_TOOL); //啟動伺服，這不是連線，所以其實不應寫在這裡，之後要改 @@ 
+				tw_connect = false;
+			}
+			else
+			{
+				rtde_control.reconnect(); //重新連線
+			}
+			if (rtde_control.isConnected()) //檢查當連線狀態
+			{
+				connect_ornot->Text = "connected successfull!";
+				connect_ornot->BackColor = System::Drawing::Color::Green;
+			}
+		}
+		catch (exception)
+		{
+			MessageBox::Show("connected fall~");
+		}
+	}
+		   //Disconnect 斷開連接 
+	private: System::Void disconnect_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		try
+		{
+			rtde_control.disconnect(); //斷開連線
+			if (!rtde_control.isConnected()) //檢查當連線狀態
+			{
+				connect_ornot->Text = "connected lost!";
+				connect_ornot->BackColor = System::Drawing::Color::Red;
+			}
+		}
+		catch (exception)
+		{
+			//MessageBox::Show("Please Connect to the robots 啾咪~");
+		}
+	}
+		   // 四捨五入 取到 小數點第 X 位 
+		   double rounding(double num, int index)
+		   {
+			   bool isNegative = false; // whether is negative number or not
+			   if (num < 0) // if this number is negative, then convert to positive number
+			   {
+				   isNegative = true;
+				   num = -num;
+			   }
+			   if (index >= 0)
+			   {
+				   int multiplier;
+				   multiplier = pow(10, index);
+				   num = (int)(num * multiplier + 0.5) / (multiplier * 1.0);
+			   }
+			   if (isNegative) // if this number is negative, then convert to negative number
+			   {
+				   num = -num;
+			   }
+			   return num;
+		   }
+		   //取得機器人數據
+	private: System::Void get_Position_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		//std::vector<double> joint_pos = rtde_receive.getActualQ(); //目標關節位置
+		std::vector<double> joint_pos = rtde_receive.getActualTCPPose(); //工具的實際笛卡爾坐標
+		/*
+		。(度) ~= 57.3*rad(徑度)
+		*/
+		for (int i = 0; i < 3; i++)
+		{
+			joint_pos[i] = joint_pos[i] * 1000.0;
+		}
+		cout << joint_pos[0] << endl; //徑度 rad
+		cout << joint_pos[1] << endl; //徑度 rad
+		cout << joint_pos[2] << endl; //徑度 rad		
+		cout << joint_pos[3] << endl; //徑度 rad
+		cout << joint_pos[4] << endl; //徑度 rad
+		cout << joint_pos[5] << endl; //徑度 rad
+		cout << endl;
+		cout << endl;
+		PosX->Text = rounding(joint_pos[0], 2).ToString();
+		PosY->Text = rounding(joint_pos[1], 2).ToString();
+		PosZ->Text = rounding(joint_pos[2], 2).ToString();
+		PosRX->Text = rounding(joint_pos[3], 3).ToString();
+		PosRY->Text = rounding(joint_pos[4], 3).ToString();
+		PosRZ->Text = rounding(joint_pos[5], 3).ToString();
+	}
+		   //滑鼠放開
+	private: System::Void Jog_up(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e)
+	{
+		timer1->Enabled = false;
+		timer2->Enabled = false;
+	}
+		   //移動軸xyz========================================================================================
+		   //timer
+	private: System::Void timer1_Tick(System::Object^ sender, System::EventArgs^ e)
+	{
+		try
+		{
+			switch (arm_chl)
+			{
+			case 1:	//JogXup
+				/*
+				speed_vector = { speed_magnitude, 0.0, 0.0, 0.0, 0.0, 0.0 };
+				rtde_control.jogStart(speed_vector, RTDEControlInterface::FEATURE_TOOL);
+				//
+				std::this_thread::sleep_for(std::chrono::milliseconds(2)); //線程跑0.002秒
+				rtde_control.jogStop();//機器人停止
+				*/
+				joint_step[0] += sd_mv;
+				rtde_control.moveL(joint_step, velocity, acceleration);
+				break;
+			case 2:	//JogXdown
+				joint_step[0] -= sd_mv;
+				rtde_control.moveL(joint_step, velocity, acceleration);
+				break;
+			case 3: //JogYup
+				joint_step[1] += sd_mv;
+				rtde_control.moveL(joint_step, velocity, acceleration);
+				break;
+			case 4: //JogYdown
+				joint_step[1] -= sd_mv;
+				rtde_control.moveL(joint_step, velocity, acceleration);
+				break;
+			case 5: //JogZup
+				joint_step[2] += sd_mv;
+				rtde_control.moveL(joint_step, velocity, acceleration);
+				break;
+			case 6: //JogZdown
+				joint_step[2] -= sd_mv;
+				rtde_control.moveL(joint_step, velocity, acceleration);
+				break;
+			default:
+				break;
+			}
+		}
+		catch (exception)
+		{
+			MessageBox::Show("Please Connect to the robots ");
+		}
+	}
+	private: System::Void JogXup_MouseDown(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e)
+	{
+		timer1->Enabled = true;
+		arm_chl = 1;
+	}
+	private: System::Void JogXdown_MouseDown(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e)
+	{
+		timer1->Enabled = true;
+		arm_chl = 2;
+	}
+	private: System::Void JogYup_MouseDown(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e)
+	{
+		timer1->Enabled = true;
+		arm_chl = 3;
+	}
+	private: System::Void JogYdown_MouseDown(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e)
+	{
+		timer1->Enabled = true;
+		arm_chl = 4;
+	}
+	private: System::Void JogZup_MouseDown(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e)
+	{
+		timer1->Enabled = true;
+		arm_chl = 5;
+	}
+	private: System::Void JogZdown_MouseDown(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e)
+	{
+		timer1->Enabled = true;
+		arm_chl = 6;
+	}
+		   //旋轉軸xyz========================================================================================
+	private: System::Void timer2_Tick(System::Object^ sender, System::EventArgs^ e)
+	{
+		try
+		{
+			std::vector<double> target = rtde_receive.getActualTCPPose();
+			//target[2] += 0.10;
+			switch (arm_ch2)
+			{
+			case 1:	//JogRXup
+			{
+				//joint_step[3] += sd_mv2;
+				//target[0] += 0.10;
+				/*
+				double roll = joint_step[3];  //RX
+				double pitch = joint_step[4]; //RY
+				double yaw = joint_step[5];   //RZ
+				roll += 1;
+
+				roll = roll / 180 * pi;
+				yaw = yaw / 180 * pi;
+				pitch = pitch / 180 * pi;
+				//
+				double cy = cos(yaw * 0.5);
+				double sy = sin(yaw * 0.5);
+				double cp = cos(pitch * 0.5);
+				double sp = sin(pitch * 0.5);
+				double cr = cos(roll * 0.5);
+				double sr = sin(roll * 0.5);
+				//
+				vector<double>orient;
+				orient.push_back(cy * cp * cr + sy * sp * sr); //[0]
+				orient.push_back(cy * cp * sr - sy * sp * cr); //[1]
+				orient.push_back(sy * cp * sr + cy * sp * cr); //[2]
+				orient.push_back(sy * cp * cr - cy * sp * sr); //[3]
+
+				//
+				cout << "orient[0] = " << orient[0] << endl;
+				cout << "orient[1] = " << orient[1] << endl;
+				cout << "orient[2] = " << orient[2] << endl;
+				cout << "orient[3] = " << orient[3] << endl;
+				cout << endl;
+
+				joint_step[3] = orient[0];
+				joint_step[4] = orient[1];
+				joint_step[5] = orient[2];
+				*/
+
+				cout << "target = " << target[0] << endl;
+				cout << "target = " << target[1] << endl;
+				cout << "target = " << target[2] << endl;
+				cout << "target = " << target[3] << endl;
+				cout << "target = " << target[4] << endl;
+				cout << "target = " << target[5] << endl;
+				//
+				std::vector<double> rx = { 0.0, 0.0, 0.0, sd_mv, 0.0, 0.0 };
+				target = rtde_control.poseTrans(target, rx);
+				joint_step = target;
+				//
+				rtde_control.moveL(joint_step, velocity, acceleration);
+				//rtde_control.moveL(target, 0.25, 0.5, true);
+				//std::this_thread::sleep_for(std::chrono::milliseconds(200));
+				// Stop the movement before it reaches target
+				//rtde_control.stopL(0.5);
+			}
+			break;
+			case 2:	//JogRXdown
+			{
+				///joint_step[3] -= sd_mv2;
+				///rtde_control.moveL(joint_step, 0.55, 0.2);
+				std::vector<double> rx = { 0.0, 0.0, 0.0, -sd_mv, 0.0, 0.0 };
+				target = rtde_control.poseTrans(target, rx);
+				joint_step = target;
+				rtde_control.moveL(joint_step, velocity, acceleration);
+				//target[0] -= 0.10;
+				//rtde_control.moveL(target, 0.25, 0.5, true);
+				//std::this_thread::sleep_for(std::chrono::milliseconds(200));
+				// Stop the movement before it reaches target
+				//rtde_control.stopL(0.5);
+			}
+			break;
+			case 3: //JogRYup
+			{
+				//joint_step[4] += sd_mv2;
+				//rtde_control.moveL(joint_step, 0.55, 0.2);
+				std::vector<double> rx = { 0.0, 0.0, 0.0, 0.0, sd_mv, 0.0 };
+				target = rtde_control.poseTrans(target, rx);
+				joint_step = target;
+				rtde_control.moveL(joint_step, velocity, acceleration);
+			}
+			break;
+			case 4: //JogRYdown
+			{
+				//joint_step[4] -= sd_mv2;
+				//rtde_control.moveL(joint_step, 0.55, 0.2);
+				std::vector<double> rx = { 0.0, 0.0, 0.0, 0.0, -sd_mv, 0.0 };
+				target = rtde_control.poseTrans(target, rx);
+				joint_step = target;
+				rtde_control.moveL(joint_step, velocity, acceleration);
+			}
+			break;
+			case 5: //JogRZup
+			{
+				//joint_step[5] += sd_mv2;
+				//rtde_control.moveL(joint_step, 0.55, 0.2);
+				std::vector<double> rx = { 0.0, 0.0, 0.0, 0.0, 0.0, sd_mv };
+				target = rtde_control.poseTrans(target, rx);
+				joint_step = target;
+				rtde_control.moveL(joint_step, velocity, acceleration);
+			}
+			break;
+			case 6: //JogRZdown
+			{
+				//joint_step[5] -= sd_mv2;
+				//rtde_control.moveL(joint_step, 0.55, 0.2);
+				std::vector<double> rx = { 0.0, 0.0, 0.0, 0.0, 0.0, -sd_mv };
+				target = rtde_control.poseTrans(target, rx);
+				joint_step = target;
+				rtde_control.moveL(joint_step, velocity, acceleration);
+			}
+			break;
+			default:
+				break;
+			}
+		}
+		catch (exception)
+		{
+			MessageBox::Show("Please Connect to the robots 啾咪~");
+		}
+	}
+	private: System::Void JogRXup_MouseDown(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e)
+	{
+		timer2->Enabled = true;
+		arm_ch2 = 1;
+	}
+	private: System::Void JogRXdown_MouseDown(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e)
+	{
+		timer2->Enabled = true;
+		arm_ch2 = 2;
+	}
+	private: System::Void JogRYup_MouseDown(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e)
+	{
+		timer2->Enabled = true;
+		arm_ch2 = 3;
+	}
+	private: System::Void JogRYdown_MouseDown(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e)
+	{
+		timer2->Enabled = true;
+		arm_ch2 = 4;
+	}
+	private: System::Void JogRZup_MouseDown(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e)
+	{
+		timer2->Enabled = true;
+		arm_ch2 = 5;
+	}
+	private: System::Void JogRZdown_MouseDown(System::Object^ sender, System::Windows::Forms::MouseEventArgs^ e)
+	{
+		timer2->Enabled = true;
+		arm_ch2 = 6;
+	}
+		   //調整速度 @@
+	private: System::Void speedj_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		//rtde_control.speedJ(joint_speed, acceleration, dt);
+		acceleration = 0.55;  //text box
+		velocity = 0.2;  //text box
+	}
+
+		   //移動方式
+	private: System::Void movej_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		std::vector<double> movej_step = { -1.54, -1.83, -2.28, -0.59, 1.60, 0.023 };  //text box
+		rtde_control.moveJ(movej_step, 0.5, 0.2);
+	}
+	private: System::Void movel_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		std::vector<double> movel_step = { -0.143, -0.435, 0.20, -0.001, 3.12, 0.04 }; //text box
+		rtde_control.moveL(movel_step, 0.5, 0.2);
+	}
+
+	private: System::Void D07_CheckedChanged(System::Object^ sender, System::EventArgs^ e)
+	{
+		if (D07->Checked == true)
+		{
+			rtde_io.setStandardDigitalOut(7, true);
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+		else
+		{
+			rtde_io.setStandardDigitalOut(7, false);
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		}
+	}
+
+	private: System::Void Go_UP_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		std::vector<double> joint_pos = rtde_receive.getActualTCPPose(); //工具的實際笛卡爾坐標
+				//std::vector<double> joint_pos = rtde_receive.getTargetTCPPose(); //工具的目標笛卡爾坐標
+				//從ursim 獲取數據
+		float Px_ = (float)rounding(joint_pos[0], 3); //X軸位移
+		float Py_ = (float)rounding(joint_pos[1], 3); //Y軸位移
+		float Pz_ = (float)rounding(joint_pos[2], 3); //Z軸位移
+		//
+		float Rx_ = (float)rounding(joint_pos[3], 3); //X軸旋轉比例
+		float Ry_ = (float)rounding(joint_pos[4], 3); //Y軸旋轉比例
+		float Rz_ = (float)rounding(joint_pos[5], 3); //Z軸旋轉比例
+		//================
+		joint_pos[2] = 305 / g1;
+		rtde_control.moveL(joint_pos, velocity, acceleration); //移動到<骨牌位置>
+	}
+
+	private: System::Void Go_Down_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		std::vector<double> joint_pos = rtde_receive.getActualTCPPose(); //工具的實際笛卡爾坐標
+				//std::vector<double> joint_pos = rtde_receive.getTargetTCPPose(); //工具的目標笛卡爾坐標
+				//從ursim 獲取數據
+		float Px_ = (float)rounding(joint_pos[0], 3); //X軸位移
+		float Py_ = (float)rounding(joint_pos[1], 3); //Y軸位移
+		float Pz_ = (float)rounding(joint_pos[2], 3); //Z軸位移
+		//
+		float Rx_ = (float)rounding(joint_pos[3], 3); //X軸旋轉比例
+		float Ry_ = (float)rounding(joint_pos[4], 3); //Y軸旋轉比例
+		float Rz_ = (float)rounding(joint_pos[5], 3); //Z軸旋轉比例
+		//================
+		joint_pos[2] = 30 / g1;
+		rtde_control.moveL(joint_pos, velocity, acceleration); //移動到<骨牌位置>
+	}
+	//Undone---------------------------------分解動作-01---------------------------------------------
+	// P2
+	private: System::Void A_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		double speed = 0.6, a = 0.2;
+		rtde_control.moveL({ 0.29255,-0.18744,0.3373,2.225,-2.219,0.032 }, speed, a);
+	}
+
+	// P1
+	private: System::Void B_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		double speed = 0.6, a = 0.2;
+		rtde_control.moveL({ 0.29255,-0.18744,0.26272,2.225,-2.219,0.032 }, speed, a);
+	}
+	
+	// P4
+	private: System::Void D_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		double speed = 0.6, a = 0.2;
+		rtde_control.moveL({ 0.29255,0.1306,0.26272,2.225,-2.219,0.032 }, speed, a);
+	}
+	// P3
+	private: System::Void E_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		double speed = 0.6, a = 0.2;
+		rtde_control.moveL({ 0.29255,0.1306,0.3373,2.225,-2.219,0.032 }, speed, a);
+	}
+	 //----------------------------------------------------------------------------------------------
+	
+	private: System::Void C_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		double speed = 0.6, a = 0.2;
+		rtde_control.moveJ_IK(joint_q, 0.55, a);
+	}
+	
+	private: System::Void P1_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		double speed = 0.6, a = 0.2;
+		
+	}
+	private: System::Void P2_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		double speed = 0.6, a = 0.2;
+		
+	}
+	private: System::Void P3_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		double speed = 0.6, a = 0.2;
+		
+	}
+	private: System::Void P4_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		double speed = 0.6, a = 0.2;
+		
+	}
+	private: System::Void start_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		double speed = 0.6, a = 0.2;
+		rtde_control.moveJ_IK(joint_q, 0.55, a);
+	}
+	//Undone-------------------------------連續動作-02----------------------------------------------
+	private: System::Void P7_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		double speed = 0.6, a = 0.2;
+		rtde_control.moveJ_IK(joint_q, 0.55, a);
+		//到P2再到P1
+		rtde_control.moveL({ 0.29255,-0.18744,0.3373,2.225,-2.219,0.032 }, speed, a);
+		rtde_control.moveL({ 0.29255,-0.18744,0.26272,2.225,-2.219,0.032 }, speed, a);
+		//吸取物件
+		rtde_io.setStandardDigitalOut(7, true);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		//到P2再到P3再到P4
+		rtde_control.moveL({ 0.29255,-0.18744,0.3373,2.225,-2.219,0.032 }, speed, a);
+		rtde_control.moveL({ 0.29255,0.1306,0.3373,2.225,-2.219,0.032 }, speed, a);
+		rtde_control.moveL({ 0.29255,0.1306,0.26272,2.225,-2.219,0.032 }, speed, a);
+
+		//放置物件
+		rtde_io.setStandardDigitalOut(7, false);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		//回到P3
+		rtde_control.moveL({ 0.29255,0.1306,0.3373,2.225,-2.219,0.032 }, speed, a);
+		rtde_control.moveJ_IK(joint_q, 0.55, a);
+	}
+	//----------------------------------------------------------------------------------------------
+
+	//Undone------------------------------------加分題-03-----------------------------------------------
+	private: System::Void button1_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		double speed = 0.6, a = 0.2;
+		rtde_control.moveJ_IK(joint_q, 0.55, a);
+		//到P2再到P1
+		rtde_control.moveL({ 0.29255,-0.18744,0.3373,2.225,-2.219,0.032 }, speed, a);
+		rtde_control.moveL({ 0.29255,-0.18744,0.26272,2.225,-2.219,0.032 }, speed, a);
+		//吸取物件
+		rtde_io.setStandardDigitalOut(7, true);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		//到P2再到P3再到P4
+		rtde_control.moveL({ 0.29255,-0.18744,0.3373,2.225,-2.219,0.032 }, speed, a);
+		rtde_control.moveL({ 0.29255,0.1306,0.3373,2.225,-2.219,0.032 }, speed, a);
+		rtde_control.moveL({ 0.29255,0.1306,0.26272,2.225,-2.219,0.032 }, speed, a);
+
+		//放置物件
+		rtde_io.setStandardDigitalOut(7, false);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		//回到P3
+		rtde_control.moveL({ 0.29255,0.1306,0.3373,2.225,-2.219,0.032 }, speed, a);
+		rtde_control.moveL({ 0.29255,(-0.18744 + 0.1306) / 2,0.3373,2.225,-2.219,0.032 }, speed, a);
+		//b
+		rtde_control.moveL({ 0.29255,(-0.18744 + 0.1306)/2,0.26272,2.225,-2.219,0.032 }, speed, a);
+		//吸取物件
+		rtde_io.setStandardDigitalOut(7, true);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+		rtde_control.moveL({ 0.29255,(-0.18744 + 0.1306) / 2,0.3373,2.225,-2.219,0.032 }, speed, a);
+		rtde_control.moveL({ 0.29255,0.1306,0.3373,2.225,-2.219,0.032 }, speed, a);
+		rtde_control.moveL({ 0.29255,0.1306,0.24,2.225,-2.219,0.032 }, speed, a);
+
+		rtde_io.setStandardDigitalOut(7, false);
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		//回到P3
+		rtde_control.moveL({ 0.29255,0.1306,0.3373,2.225,-2.219,0.032 }, speed, a);
+
+		rtde_control.moveJ_IK(joint_q, 0.55, a);
+	}
+	//--------------------------------------------------------------------------------------------------
+	private: System::Void button2_Click(System::Object^ sender, System::EventArgs^ e)
+	{
+		VideoCapture stream1(0);   //0 is the id of video device.0 if you have only one camera.
+		if (!stream1.isOpened())
+		{ //check if video device has been initialised
+			cout << "cannot open camera";
+		}
+		while (true)
+		{
+			Mat cameraFrame;
+			Mat HSV;
+			stream1.read(cameraFrame);
+			cvtColor(cameraFrame, HSV, COLOR_BGR2HSV);
+			imshow("cam", HSV);
+			if (waitKey(30) >= 0)
+				break;
+		}
+	}
+	private: System::Void Form1_Load(System::Object^ sender, System::EventArgs^ e) 
+	{
+	}
+	private: System::Void ip_txt_TextChanged(System::Object^ sender, System::EventArgs^ e) {
+	}
+};
+}
+
+
