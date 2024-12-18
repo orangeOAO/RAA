@@ -43,7 +43,7 @@ int Bmax = 255, Gmax = 255, Rmax = 255;
 int Bmin4B = 31, Gmin4B = 169, Rmin4B = 0;
 int Bmax4B = 255, Gmax4B = 255, Rmax4B = 138;
 //origin_theta
-float origin_theta = 0;
+float origin_theta = 90;
 //int mmovevel = 30;
 bool flag2 = false;
 int counter = 0;
@@ -997,6 +997,7 @@ void CRAA_Final_ExampleDlg::OnTimer(UINT_PTR nIDEvent)
 					cv::putText(mat_srcImg, temp.str(), Point(rt4, ct4 - 15), font_face_track, font_scale_track, cv::Scalar(0, 255, 0), thickness_track, 8, 0);
 					temp << 5 << "(" << tracking_theta << ")";
 					cv::putText(mat_srcImg, temp.str(), Point(rt4, ct4 - 50), font_face_track, font_scale_track, cv::Scalar(0, 255, 0), thickness_track, 8, 0);
+					//Because the y-axis direction is opposite to our designated coordinate, we need to convert it. 
 					ct1 *= -1;
 					ct2 *= -1;
 					ct3 *= -1;
@@ -1058,6 +1059,8 @@ void CRAA_Final_ExampleDlg::OnTimer(UINT_PTR nIDEvent)
 					temp.str("");
 					temp << 4 << "(" << (int)r4 << "," << (int)c4 << ")";
 					cv::putText(mat_srcImg, temp.str(), Point(r4, c4 + 15), font_face, font_scale, cv::Scalar(0, 255, 0), thickness, 8, 0);
+
+					//Because the y-axis direction is opposite to our designated coordinate, we need to convert it. 
 					c1 *= -1;
 					c2 *= -1;
 					c3 *= -1;
@@ -1091,83 +1094,75 @@ void CRAA_Final_ExampleDlg::OnTimer(UINT_PTR nIDEvent)
 		}
 		//控制器
 		case 3:
-			double errorX1, errorX2;
-			double errorY1, errorY2;
+
 			double speedLeft;
 			double speedRight;
-
-			//part2
-			//Undone Task3:計算x、y軸的誤差並計算左右輪的速度-------------------------------------------------
-			//errorX1 = 紅色點1-藍色點4;
-			//errorX2 = 紅色點2-藍色點3;
-			//errorY1 = 紅色點1-藍色點4;
-			//errorY2 = 紅色點2-藍色點3;
 			double mid_robotX , mid_robotY ;
 			double mid_targetX, mid_targetY;
-	
+			static clock_t last_time = clock();
 
+			clock_t current_time = clock();
+			double dt = fabs(double(current_time - last_time)) / CLOCKS_PER_SEC; 
+			static double current_theta = 0;
+			last_time = current_time;
+
+			//if turn left getRotVel is positive
+			current_theta += dt * robot.getRotVel();
+			current_theta %= 360;
 			mid_targetX = (rt1 + rt2 + rt3 + rt4) / 4;
 			mid_targetY = (ct1 + ct2 + ct3 + ct4) / 4;
 
 			mid_robotX = (r1 + r2 + r3 + r4)  / 4;
 			mid_robotY = (c1 + c2 + c3 + c4) / 4;
-			//errorX1 = rt1 - r4;
-			//errorX2 = rt2 - r3;
-			//errorY1 = ct1 - c4;
-			//errorY2 = ct2 - c3;
-			//(81,191)(215,155)
-			//建議增益為0.6
-			//speedLeft = (mid_targetY - mid_robotY + mid_targetX - mid_robotX) * 0.6;
-			//speedRight = (mid_targetY - mid_robotY + mid_robotX - mid_targetX) * 0.6;
-			double theta_target = atan((mid_targetY - mid_robotY) / (mid_targetX - mid_robotX)) * 180 / pi;
-	
-			//double theta_robot = atan((c1 - c4) / (r1 - r4));
-			//Console.WriteLine("OAO");
-			//printf("OAOAOOAOAOAO%f, %f \n", theta_robot, theta_target);
-			message.Format(_T("target_theta: %f\n"), (theta_target) );
-
-			OutputDebugString(message);
-			message.Format(_T("(theta_target - origin_theta: %f\n"), (theta_target - origin_theta) );
 			
+			double theta_target = atan2(mid_targetY - mid_robotY, mid_targetX - mid_robotX) * 180 / pi;
+	
+			
+			message.Format(_T("target_theta: %f\n"), (theta_target) );
 			OutputDebugString(message);
-			//std::cout << theta_robot<<theta_target << endl;
-			double diff_angle = (theta_target - theta);
-			message.Format(_T("(theta_target - theta: %f\n"), (theta_target - theta));
-
+			message.Format(_T("theta_target - origin_theta: %f\n"), (theta_target - origin_theta) );
 			OutputDebugString(message);
 
-			message.Format(_T("(origin_theta: %f\n"), origin_theta);
-
+			// front 0 left 90 back 180 right -90
+			double diff_angle = ((theta_target - origin_theta) - current_theta );
+			message.Format(_T("theta_target - theta: %f\n"), (theta_target - theta));
 			OutputDebugString(message);
-			if ((-10 <= diff_angle && diff_angle <= 10) || (-10 <= (diff_angle + 180) && (diff_angle + 180) <= 10))
+			
+			message.Format(_T("origin_theta: %f\n"), origin_theta);
+			OutputDebugString(message);
+
+
+			if (fabs(diff_angle) <= 10)
 			{
-				origin_theta = theta_target - 90;
-				message.Format(_T("CHANGECHANGECHANGECHANGECHANGECHANGECHANGE: % f\n"));
-
+				current_theta = theta_target;
+				message.Format(_T("rotate complete: % f\n"));
 				OutputDebugString(message);
-				speedRight = 0;
-				speedLeft = 0;
+				double distance = fabs(sqrt(pow(mid_targetY - mid_robotY, 2) + pow(mid_targetX - mid_robotX, 2)));
+
+				if ( distance <= 50){
+					message.Format(_T("ALL complete: % f\n"));
+					OutputDebugString(message);
+				}
+				else
+				{
+					speedRight = sin(theta_target);
+					speedLeft = sin(theta_target);
+				}
+				
 			}
 			else {
-				speedLeft = cos(theta_target - origin_theta) + sin(theta_target - origin_theta);
-				speedRight = cos(180-(theta_target - origin_theta)) + sin(theta_target - origin_theta);
-				speedRight *= 50;
-				speedLeft *= 50;
+				speedLeft = cos(theta_target);
+				speedRight = cos(180-(theta_target));
+				speedRight *= (theta_target - current_theta) / theta_target;
+				speedLeft *= (theta_target - current_theta) / theta_target;
 				
-				message.Format(_T("Left, Right: %f"), speedLeft, speedRight);
-				OutputDebugString(message);
+				
 
 			}
-
-			//限制速度:speedRight和speedLeft不能大於mmovevel
-			//if (speedLeft > mmovevel)
-				//speedLeft = mmovevel;
-				// speedLeft = ??? ;
-			//if(speedRight > mmovevel)
-				//speedRight = mmovevel;
-				// speedRight = ??? ;
-			//--------------------------------------------------------------------------------------------
-			
+			speedLeft *= 50;
+			speedRight *= 50;
+			message.Format(_T("Left, Right: %f"), speedLeft, speedRight);
+			OutputDebugString(message);
 			robot.lock();
 			robot.setVel2(speedLeft, speedRight); // w_l and w_r
 			robot.unlock();
